@@ -2,10 +2,12 @@ import datetime
 from typing import Any, Optional
 from typing_extensions import Self
 from dateutil.parser import parse
+from dateutil import tz
 
 
 class VueDevice(object):
     def __init__(self, gid=0, manId="", modelNum="", firmwareVersion=""):
+        self.device_id = ""
         self.device_gid: int = gid
         self.manufacturer_id = manId
         self.model = modelNum
@@ -42,6 +44,7 @@ class VueDevice(object):
 
     def from_json_dictionary(self, js: "dict[str, Any]") -> Self:
         """Populate device data from a dictionary extracted from the response json."""
+        self.device_id = js.get("device_id", "")
         if "deviceGid" in js:
             self.device_gid = js["deviceGid"]
         if "manufacturerDeviceId" in js:
@@ -247,92 +250,208 @@ class VueDeviceChannelUsage(VueDeviceChannel):
 
 class OutletDevice(object):
     def __init__(self, gid: int = 0, on: bool = False):
+        self.device_id = ""
         self.device_gid = gid
         self.outlet_on = on
         self.load_gid: int = 0
-        self.schedules = []
 
     def from_json_dictionary(self, js: "dict[str, Any]") -> Self:
-        if "deviceGid" in js:
-            self.device_gid = js["deviceGid"]
-        if "outletOn" in js:
-            self.outlet_on = js["outletOn"]
-        if "loadGid" in js:
-            self.load_gid = js["loadGid"]
-        # don't have support for schedules yet
+        self.device_id = js.get("device_id", "")
+        self.device_gid = js.get("device_gid", 0)
+        self.load_gid = js.get("load_gid", 0)
+        self.outlet_on = js.get("outlet_on", False)
         return self
 
     def as_dictionary(self) -> "dict[str, Any]":
         return {
-            "deviceGid": self.device_gid,
-            "outletOn": self.outlet_on,
-            "loadGid": self.load_gid,
+            "device_id": self.device_id,
+            "device_gid": self.device_gid,
+            "load_gid": self.load_gid,
+            "outlet_on": self.outlet_on,
         }
 
+class EvseStatus(object):
+    """{
+            "device_id": "D2129A0700AC67B2FBBD9C",
+            "device_gid": 62626,
+            "load_gid": 42275,
+            "charger_status": "DISCONNECTED_ON"
+        }"""
 
-class ChargerDevice(object):
-    def __init__(self, gid: int = 0, on: bool = False):
+    def __init__(self, id: str = "", gid: int = 0, load_gid: int = 0, status: str = ""):
+        self.device_id = id
         self.device_gid = gid
-        self.charger_on = on
-        self.message = ""
-        self.status = ""
-        self.icon = ""
-        self.icon_label = ""
-        self.icon_detail_text = ""
-        self.fault_text = ""
-        self.charging_rate = 0
-        self.max_charging_rate = 0
-        self.off_peak_schedules_enabled = False
-        self.custom_schedules = []
-        self.load_gid: int = 0
-        self.debug_code = ""
-        self.pro_control_code = ""
-        self.breaker_pin = ""
+        self.load_gid = load_gid
+        self.charger_status = status
 
     def from_json_dictionary(self, js: "dict[str, Any]") -> Self:
-        if "deviceGid" in js:
-            self.device_gid = js["deviceGid"]
-        if "loadGid" in js:
-            self.load_gid = js["loadGid"]
-        if "chargerOn" in js:
-            self.charger_on = js["chargerOn"]
-        if "message" in js:
-            self.message = js["message"]
-        if "status" in js:
-            self.status = js["status"]
-        if "icon" in js:
-            self.icon = js["icon"]
-        if "iconLabel" in js:
-            self.icon_label = js["iconLabel"]
-        if "iconDetailText" in js:
-            self.icon_detail_text = js["iconDetailText"]
-        if "faultText" in js:
-            self.fault_text = js["faultText"]
-        if "chargingRate" in js:
-            self.charging_rate = js["chargingRate"]
-        if "maxChargingRate" in js:
-            self.max_charging_rate = js["maxChargingRate"]
-        if "offPeakSchedulesEnabled" in js:
-            self.off_peak_schedules_enabled = js["offPeakSchedulesEnabled"]
-        if "debugCode" in js:
-            self.debug_code = js["debugCode"]
-        if "proControlCode" in js:
-            self.pro_control_code = js["proControlCode"]
-        if "breakerPIN" in js:
-            self.breaker_pin = js["breakerPIN"]
-        # don't have support for schedules yet
+        self.device_id = js.get("device_id", "")
+        self.device_gid = js.get("device_gid", 0)
+        self.load_gid = js.get("load_gid", 0)
+        self.charger_status = js.get("charger_status", "")
+        return self
+
+class ChargerDevice(object):
+    """{
+                "device_id": "D2129A0700AC67B2FBBD9C",
+                "category": "EVSE",
+                "name": "EV",
+                "device_description": null,
+                "connected": true,
+                "connected_changed_time": "2025-12-25T03:52:27.629Z",
+                "time_zone": "America/New_York",
+                "billing_cycle_start_day": 16,
+                "firmware": "EVCharger-599",
+                "latitude": 43.1910367,
+                "longitude": -77.8089975,
+                "excess_solar_configured": false,
+                "peak_demand_configured": false,
+                "energy_management_active": "NONE",
+                "energy_managements_configured": [],
+                "energy_managements_active": [],
+                "evse_product": "C1",
+                "evse_model": "Classic",
+                "evse_branding": "EMPORIA",
+                "evse_power_source": "NEMA",
+                "evse_color": "WHITE",
+                "evse_gun_type": "J1772",
+                "breaker_pin": "1313",
+                "charger_on": true,
+                "charge_rate_amps": 24,
+                "max_charge_rate_amps": 24,
+                "power_smart_configuration": null,
+                "vehicle_connected": false,
+                "vehicle_charging": false,
+                "partner_schedule_status": "INELIGIBLE"
+            }"""
+
+    def __init__(self, id: str = "", gid: int = 0, on: bool = False):
+        self.device_id = id
+        self.device_gid = gid
+        self.charger_on = on
+        self.category = ""
+        self.name = ""
+        self.device_description = ""
+        self.connected = False
+        self.connected_changed_time: Optional[datetime.datetime] = None
+        self.time_zone = datetime.timezone.utc
+        self.time_zone_string = datetime.timezone.utc.tzname(None)
+        self.billing_cycle_start_day = 0
+        self.firmware = ""
+        self.latitude = 0.0
+        self.longitude = 0.0
+        self.excess_solar_configured = False
+        self.peak_demand_configured = False
+        self.energy_management_active = "NONE"
+        self.energy_managements_configured: list[str] = []
+        self.energy_managements_active: list[str] = []
+        self.evse_product = ""
+        self.evse_model = ""
+        self.evse_branding = ""
+        self.evse_power_source = ""
+        self.evse_color = ""
+        self.evse_gun_type = ""
+        self.breaker_pin = ""
+        self.charging_rate = 0
+        self.max_charging_rate = 0
+        self.power_smart_configuration: Optional[dict[str, Any]] = None
+        self.vehicle_connected = False
+        self.vehicle_charging = False
+        self.partner_schedule_status = ""
+
+    def from_json_dictionary(self, js: "dict[str, Any]") -> Self:
+        self.device_id = js.get("device_id", self.device_id)
+        self.device_gid = js.get("device_gid", self.device_gid)
+        self.category = js.get("category", self.category)
+        self.name = js.get("name", self.name)
+        self.device_description = js.get("device_description", self.device_description)
+        self.connected = js.get("connected", self.connected)
+        if "connected_changed_time" in js and js["connected_changed_time"]:
+            try:
+                self.connected_changed_time = parse(js["connected_changed_time"])
+            except:
+                self.connected_changed_time = None
+        timezone_string = js.get("time_zone", None)
+        if timezone_string: # convert timezone string to a tzinfo object
+            self.time_zone_string = timezone_string
+            self.time_zone = tz.gettz(timezone_string)
+
+        self.billing_cycle_start_day = js.get(
+            "billing_cycle_start_day", self.billing_cycle_start_day
+        )
+        self.firmware = js.get("firmware", self.firmware)
+        self.latitude = js.get("latitude", self.latitude)
+        self.longitude = js.get("longitude", self.longitude)
+        self.excess_solar_configured = js.get(
+            "excess_solar_configured", self.excess_solar_configured
+        )
+        self.peak_demand_configured = js.get(
+            "peak_demand_configured", self.peak_demand_configured
+        )
+        self.energy_management_active = js.get(
+            "energy_management_active", self.energy_management_active
+        )
+        self.energy_managements_configured = js.get(
+            "energy_managements_configured", self.energy_managements_configured
+        )
+        self.energy_managements_active = js.get(
+            "energy_managements_active", self.energy_managements_active
+        )
+        self.evse_product = js.get("evse_product", self.evse_product)
+        self.evse_model = js.get("evse_model", self.evse_model)
+        self.evse_branding = js.get("evse_branding", self.evse_branding)
+        self.evse_power_source = js.get("evse_power_source", self.evse_power_source)
+        self.evse_color = js.get("evse_color", self.evse_color)
+        self.evse_gun_type = js.get("evse_gun_type", self.evse_gun_type)
+        self.breaker_pin = js.get("breaker_pin", self.breaker_pin)
+        self.charger_on = js.get("charger_on", self.charger_on)
+        self.charging_rate = js.get("charge_rate_amps", self.charging_rate)
+        self.max_charging_rate = js.get("max_charge_rate_amps", self.max_charging_rate)
+        self.power_smart_configuration = js.get(
+            "power_smart_configuration", self.power_smart_configuration
+        )
+        self.vehicle_connected = js.get("vehicle_connected", self.vehicle_connected)
+        self.vehicle_charging = js.get("vehicle_charging", self.vehicle_charging)
+        self.partner_schedule_status = js.get(
+            "partner_schedule_status", self.partner_schedule_status
+        )
         return self
 
     def as_dictionary(self) -> "dict[str, Any]":
         d = {
-            "deviceGid": self.device_gid,
-            "loadGid": self.load_gid,
-            "chargerOn": self.charger_on,
-            "chargingRate": self.charging_rate,
-            "maxChargingRate": self.max_charging_rate,
+            "device_id": self.device_id,
+            "device_gid": self.device_gid,
+            "charger_on": self.charger_on,
+            "category": self.category,
+            "name": self.name,
+            "device_description": self.device_description,
+            "connected": self.connected,
+            "connected_changed_time": self.connected_changed_time.isoformat() if self.connected_changed_time else None,
+            "time_zone": self.time_zone_string,
+            "billing_cycle_start_day": self.billing_cycle_start_day,
+            "firmware": self.firmware,
+            "latitude": self.latitude,
+            "longitude": self.longitude,
+            "excess_solar_configured": self.excess_solar_configured,
+            "peak_demand_configured": self.peak_demand_configured,
+            "energy_management_active": self.energy_management_active,
+            "energy_managements_configured": self.energy_managements_configured,
+            "energy_managements_active": self.energy_managements_active,
+            "evse_product": self.evse_product,
+            "evse_model": self.evse_model,
+            "evse_branding": self.evse_branding,
+            "evse_power_source": self.evse_power_source,
+            "evse_color": self.evse_color,
+            "evse_gun_type": self.evse_gun_type,
+            "charging_rate_amps": self.charging_rate,
+            "max_charge_rate_amps": self.max_charging_rate,
+            "power_smart_configuration": self.power_smart_configuration,
+            "vehicle_connected": self.vehicle_connected,
+            "vehicle_charging": self.vehicle_charging,
+            "partner_schedule_status": self.partner_schedule_status,
         }
         if self.breaker_pin:
-            d["breakerPIN"] = self.breaker_pin
+            d["breaker_pin"] = self.breaker_pin
         return d
 
 
