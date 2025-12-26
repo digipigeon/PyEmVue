@@ -16,7 +16,7 @@ class VueDevice(object):
         self.parent_channel_num: str = ""
         self.channels: list[VueDeviceChannel] = []
         self.outlet: Optional[OutletDevice] = None
-        self.ev_charger: Optional[ChargerDevice] = None
+        self.ev_charger: Optional[EVSEDevice] = None
 
         self.connected: bool = False
         self.offline_since = datetime.datetime.min
@@ -70,7 +70,7 @@ class VueDevice(object):
             self.outlet = OutletDevice().from_json_dictionary(js["outlet"])
         # EVSEs are also special
         if "evCharger" in js and js["evCharger"]:
-            self.ev_charger = ChargerDevice().from_json_dictionary(js["evCharger"])
+            self.ev_charger = EVSEDevice().from_json_dictionary(js["evCharger"])
 
         # Online data
         if "deviceConnected" in js and js["deviceConnected"]:
@@ -83,51 +83,6 @@ class VueDevice(object):
             except:
                 self.offline_since = datetime.datetime.min
         return self
-
-    def populate_location_properties_from_json(self, js: "dict[str, Any]"):
-        """Adds the values from the get_device_properties method."""
-        if "deviceName" in js:
-            self.device_name = js["deviceName"]
-        if "displayName" in js:
-            self.display_name = js["displayName"]
-        if "zipCode" in js:
-            self.zip_code = js["zipCode"]
-        if "timeZone" in js:
-            self.time_zone = js["timeZone"]
-        if "usageCentPerKwHour" in js:
-            self.usage_cent_per_kw_hour = js["usageCentPerKwHour"]
-        if "peakDemandDollarPerKw" in js:
-            self.peak_demand_dollar_per_kw = js["peakDemandDollarPerKw"]
-        if "billingCycleStartDay" in js:
-            self.billing_cycle_start_day = js["billingCycleStartDay"]
-        if "solar" in js:
-            self.solar = js["solar"]
-        if "utilityRateGid" in js:
-            self.utility_rate_gid = js["utilityRateGid"]
-        if "locationInformation" in js and js["locationInformation"]:
-            li = js["locationInformation"]
-            if "airConditioning" in li:
-                self.air_conditioning = li["airConditioning"]
-            if "heatSource" in li:
-                self.heat_source = li["heatSource"]
-            if "locationSqFt" in li:
-                self.location_sqft = li["locationSqFt"]
-            if "numElectricCars" in li:
-                self.num_electric_cars = li["numElectricCars"]
-            if "locationType" in li:
-                self.location_type = li["locationType"]
-            if "numPeople" in li:
-                self.num_people = li["numPeople"]
-            if "swimmingPool" in li:
-                self.swimming_pool = li["swimmingPool"]
-            if "hotTub" in li:
-                self.hot_tub = li["hotTub"]
-        if "latitudeLongitude" in js and js["latitudeLongitude"]:
-            if "latitude" in js["latitudeLongitude"]:
-                self.latitude = js["latitudeLongitude"]["latitude"]
-            if "longitude" in js["latitudeLongitude"]:
-                self.longitude = js["latitudeLongitude"]["longitude"]
-
 
 class VueDeviceChannel(object):
     def __init__(
@@ -270,7 +225,7 @@ class OutletDevice(object):
             "outlet_on": self.outlet_on,
         }
 
-class EvseStatus(object):
+class EVSEStatus(object):
     """{
             "device_id": "D2129A0700AC67B2FBBD9C",
             "device_gid": 62626,
@@ -291,7 +246,7 @@ class EvseStatus(object):
         self.charger_status = js.get("charger_status", "")
         return self
 
-class ChargerDevice(object):
+class EVSEDevice(object):
     """{
                 "device_id": "D2129A0700AC67B2FBBD9C",
                 "category": "EVSE",
@@ -587,3 +542,66 @@ class VehicleStatus(object):
             "chargeCurrentRequest": self.charge_current_request,
             "chargeCurrentRequestMax": self.charge_current_request_max,
         }
+
+class ChannelDevice(object):
+    def __init__(self):
+        self.device_gid: int = 0
+        self.device_id: str = ""
+        self.channels: list[Channel] = []
+
+    def from_json_dictionary(self, js: "dict[str, Any]") -> Self:
+        self.device_gid = js.get("device_gid", 0)
+        self.device_id = js.get("device_id", "")
+        self.channels = []
+        for ch in js.get("channels", []):
+            if ch:
+                populated = Channel().from_json_dictionary(ch)
+                self.channels.append(populated)
+        return self
+
+class Channel(object):
+    """{
+                "display_name": "Kitchen 1",
+                "channel_id": "Branch_4",
+                "parent_channel_id": null,
+                "channel_num": "4",
+                "sub_type": "Kitchen",
+                "nested_devices": [
+                    {
+                        "device_gid": 86215,
+                        "device_id": "B0000B0204c45bbef9e0f6",
+                        "channels": [
+                            {
+                                "display_name": "Washer",
+                                "channel_id": "Mains",
+                                "parent_channel_id": null,
+                                "channel_num": "1,2,3",
+                                "sub_type": "Smart Outlet",
+                                "nested_devices": []
+                            }
+                        ],
+                        "linked_devices": []
+                    }
+                ]
+            }"""
+
+    def __init__(self):
+        self.display_name = ""
+        self.channel_id = ""
+        self.parent_channel_id: Optional[str] = None
+        self.channel_num = ""
+        self.sub_type = ""
+        self.nested_devices: list[ChannelDevice] = []
+
+    def from_json_dictionary(self, js: "dict[str, Any]") -> Self:
+        self.display_name = js.get("display_name", "")
+        self.channel_id = js.get("channel_id", "")
+        self.parent_channel_id = js.get("parent_channel_id", None)
+        self.channel_num = js.get("channel_num", "")
+        self.sub_type = js.get("sub_type", "")
+        self.nested_devices = []
+        for dev in js.get("nested_devices", []):
+            if dev:
+                populated = ChannelDevice().from_json_dictionary(dev)
+                self.nested_devices.append(populated)
+        return self

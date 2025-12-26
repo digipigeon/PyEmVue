@@ -3,6 +3,23 @@ import json
 import getpass
 import os
 
+from pyemvue.device import ChannelDevice
+
+def print_device_channel(device: ChannelDevice, depth=0):
+    prefix = '--' * depth
+    print(f"{prefix}Device ID: {device.device_id} GID: {device.device_gid}")
+    print(f"{prefix}Channels:")
+    for channel in device.channels:
+        print(f"{prefix}--Name: {channel.display_name}")
+        print(f"{prefix}--Channel ID: {channel.channel_id}")
+        print(f"{prefix}--Parent: {channel.parent_channel_id}")
+        print(f"{prefix}--Channel Num: {channel.channel_num}")
+        print(f"{prefix}--Sub Type: {channel.sub_type}")
+        for nested in channel.nested_devices:
+            print_device_channel(nested, depth+1)
+    
+
+
 # Create PyEmVue object
 vue = pyemvue.PyEmVue()
 
@@ -21,6 +38,13 @@ else:
 print("Logged in?", logged_in)
 if not logged_in:
     raise Exception("Login failed")
+
+# get the channel list
+channels = vue.get_channels()
+print("Channel/Device Tree:")
+# recursively print channel data
+for channel in channels:
+    print_device_channel(channel)
 
 # Call the status API
 outlets, evse_statuses = vue.get_devices_status()

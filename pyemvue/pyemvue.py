@@ -10,7 +10,8 @@ from pyemvue.auth import Auth, SimulatedAuth
 from pyemvue.enums import Scale, Unit
 from pyemvue.customer import Customer
 from pyemvue.device import (
-    ChargerDevice,
+    ChannelDevice,
+    EVSEDevice,
     VueDevice,
     OutletDevice,
     VueDeviceChannel,
@@ -19,7 +20,7 @@ from pyemvue.device import (
     ChannelType,
     Vehicle,
     VehicleStatus,
-    EvseStatus
+    EVSEStatus
 )
 
 # Old unversioned API details
@@ -42,6 +43,7 @@ API_ROOT_V1 = "https://c-api.emporiaenergy.com/v1"
 API_GET_EVSES = "devices/evses?device_ids={deviceIds}"
 API_EVSE_CONTROL = "customers/evse/control"
 API_EVSE_SETTINGS = "devices/evses/settings"
+API_CHANNELS_V1 = "customers/devices/channels"
 
 API_MAINTENANCE = (
     "https://s3.amazonaws.com/com.emporiaenergy.manual.ota/maintenance/maintenance.json"
@@ -80,16 +82,17 @@ class PyEmVue(object):
                         for subdev in dev["devices"]:
                             devices.append(VueDevice().from_json_dictionary(subdev))
         return devices
-
-    def populate_device_properties(self, device: VueDevice) -> VueDevice:
-        """Get details about a specific device"""
-        url = API_DEVICE_PROPERTIES.format(deviceGid=device.device_gid)
-        response = self.auth.request("get", url)
+    
+    def get_channels(self) -> "list[ChannelDevice]":
+        """Get all channels under the current customer account."""
+        response = self.auth_v1.request("get", API_CHANNELS_V1)
         response.raise_for_status()
+        channels: list[ChannelDevice] = []
         if response.text:
             j = response.json()
-            device.populate_location_properties_from_json(j)
-        return device
+            for channel in j:
+                channels.append(ChannelDevice().from_json_dictionary(channel))
+        return channels
 
     def update_channel(self, channel: VueDeviceChannel) -> VueDeviceChannel:
         """Update the channel with the provided state."""
@@ -234,26 +237,10 @@ class PyEmVue(object):
         outlet.from_json_dictionary(response.json())
         return outlet
 
-    def update_charger(
-        self,
-        charger: ChargerDevice,
-        on: Optional[bool] = None,
-        charge_rate: Optional[int] = None,
-    ) -> ChargerDevice:
-        """Primarily to enable/disable an evse/charger. The on and charge_rate parameters override the values in the object if provided"""
-        if on is not None:
-            charger.charger_on = on
-        if charge_rate:
-            charger.charging_rate = charge_rate
-
-        response = self.auth.request("put", API_CHARGER, json=charger.as_dictionary())
-        response.raise_for_status()
-        charger.from_json_dictionary(response.json())
-        return charger
 
     def get_evses(
         self, device_ids: "list[str]"
-    ) -> "list[ChargerDevice]":
+    ) -> "list[EVSEDevice]":
         """Gets the details for the specified EVSEs."""
         device_ids_str = ""
         if device_ids:
@@ -261,13 +248,13 @@ class PyEmVue(object):
         url = API_GET_EVSES.format(deviceIds=device_ids_str)
         response = self.auth_v1.request("get", url)
         response.raise_for_status()
-        chargers: list[ChargerDevice] = []
+        chargers: list[EVSEDevice] = []
         if response.text:
             j = response.json()
             if not j or "success" not in j:
                 return chargers
             for raw_charger in j.get("success", []):
-                chargers.append(ChargerDevice().from_json_dictionary(raw_charger))
+                chargers.append(EVSEDevice().from_json_dictionary(raw_charger))
         return chargers
 
     def set_evse_state(self, device_id: str, enabled: bool) -> bool:
@@ -299,17 +286,17 @@ class PyEmVue(object):
 
     def get_devices_status(
         self, device_list: Optional["list[VueDevice]"] = None
-    ) -> "tuple[list[OutletDevice], list[EvseStatus]]":
+    ) -> "tuple[list[OutletDevice], list[EVSEStatus]]":
         """Gets the list of outlets and chargers. If device list is provided, updates the connected status on each device."""
         response = self.auth_v1.request("get", API_GET_STATUS)
         response.raise_for_status()
-        chargers: list[EvseStatus] = []
+        chargers: list[EVSEStatus] = []
         outlets: list[OutletDevice] = []
         if response.text:
             j = response.json()
             if not j: return (outlets, chargers)
             for raw_charger in j.get("evses", []):
-                chargers.append(EvseStatus().from_json_dictionary(raw_charger))
+                chargers.append(EVSEStatus().from_json_dictionary(raw_charger))
             for raw_outlet in j.get("outlets", []):
                 outlets.append(OutletDevice().from_json_dictionary(raw_outlet))
 
