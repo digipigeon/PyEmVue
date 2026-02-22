@@ -1,0 +1,10 @@
+services:
+  pyemvue-exporter:
+    build: .
+    container_name: pyemvue-grafana-exporter
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - SCRAPE_INTERVAL=${SCRAPE_INTERVAL:-60}

@@ -11,3 +11,6 @@ Notes/
 keys.json
 test.py
 sample_requests.md
+
+# Environment files with secrets
+.env
